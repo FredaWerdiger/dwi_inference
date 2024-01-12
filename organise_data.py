@@ -16,7 +16,7 @@ subject file input is expected to be comma separated values file of INSPIRE subj
 created like
 with open('test_file.csv', 'w') as myfile:
     writer = csv.writer(myfile)
-    for subject in subs[:10]:
+    for subject in subs:
         writer.writerow([subject])
 atlas_path:
 The location of the mediaflux drive (e.g. Y:)
