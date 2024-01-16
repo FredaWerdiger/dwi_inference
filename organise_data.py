@@ -25,6 +25,8 @@ the location of the result. Within the specified path, the stacked images will b
 '''
 
 def main(subjects_file, atlas_path, out_path):
+    if not os.path.exists(out_path):
+        os.makedirs(out_path)
     atlas = os.path.join(atlas_path, 'ATLAS_database')
     subjects_df = pd.read_csv(subjects_file, sep=',', header=None, names=['subject'])
     subjects_df['adc'] = ''

@@ -34,6 +34,11 @@ DenseNet code found at https://github.com/FredaWerdiger/DenseNetFCN3D-pytorch
 
 def define_dvalues(dwi_img):
     steps = int(dwi_img.shape[2] / 18)
+    if steps == 0:
+        d_min = 0
+        d_max = dwi_img.shape[2]
+        d = range(d_min, d_max)
+        return d
     rem = int(dwi_img.shape[2] / steps) - 18
 
     if rem == 0:
@@ -99,7 +104,6 @@ def main(path_to_images):
 
     post_transforms = Compose([
         EnsureTyped(keys="pred"),
-        EnsureChannelFirstd(keys="label"),
         Invertd(
             keys="pred",
             transform=test_transforms,
