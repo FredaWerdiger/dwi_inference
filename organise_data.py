@@ -27,6 +27,8 @@ the location of the result. Within the specified path, the stacked images will b
 def main(subjects_file, atlas_path, out_path):
     if not os.path.exists(out_path):
         os.makedirs(out_path)
+    if not os.path.exists(os.path.join(out_path, 'images')):
+        os.makedirs(os.path.join(out_path, 'images'))
     atlas = os.path.join(atlas_path, 'ATLAS_database')
     subjects_df = pd.read_csv(subjects_file, sep=',', header=None, names=['subject'])
     subjects_df['adc'] = ''
@@ -64,11 +66,13 @@ def main(subjects_file, atlas_path, out_path):
     # temporary image for the BET outputs
     temp1 = 'temp1.nii.gz'
 
-    subjects_full_imaging = subjects_df[(subjects_df.dwi == 1) & (subjects_df.adc == 1)].subject.to_list()
-    for subject in subjects_full_imaging:
+    subjects = subjects_df.subject.to_list()
+    for subject in subjects:
         print(f"Running for subject: {subject}")
-        dwi = [file for file in dwi_paths if subject in file][0]
-        adc = [file for file in adc_paths if subject in file][0]
+        try:
+            dwi = [file for file in dwi_paths if subject in file][0]
+        except IndexError:
+            continue
 
         # run bet on ADC (0.1) and DWI (0.5)
         betdwi.inputs.in_file = dwi
@@ -89,6 +93,16 @@ def main(subjects_file, atlas_path, out_path):
         time.sleep(3)
         mask_im = nb.load(res.outputs.out_file)
 
+        try:
+            adc = [file for file in adc_paths if subject in file][0]
+        except IndexError:
+            # for no ADC just combine two DWIs
+            combined_im = nb.concat_images([dwi_im, dwi_im], check_affines=False)
+            nb.save(combined_im,
+                    os.path.join(out_path, 'images', subject + '_image.nii.gz')
+                    )
+            continue
+
         reorient.inputs.in_file = adc
         res = reorient.run()
         time.sleep(3)
@@ -105,10 +119,6 @@ def main(subjects_file, atlas_path, out_path):
         # remove reoriented file
         os.remove(res.outputs.out_file)
         combined_im = nb.concat_images([dwi_im, adc_masked_im], check_affines=False)
-
-        if not os.path.exists(os.path.join(out_path, 'images')):
-            os.makedirs(os.path.join(out_path, 'images'))
-
         nb.save(combined_im,
                 os.path.join(out_path, 'images', subject + '_image.nii.gz')
                 )

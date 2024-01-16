@@ -78,18 +78,20 @@ def create_mrlesion_img(dwi_img, dwi_lesion_img, savefile, d, ext='png', dpi=250
     plt.close()
 
 
-def main(path_to_images):
+def main(path_to_images, adc=True):
 
     test_transforms = Compose(
         [
             LoadImaged(keys="image"),
             EnsureChannelFirstd(keys="image"),
-            Resized(keys="image",
+            SplitDimd(keys="image", dim=0, keepdim=True,
+                      output_postfixes=['b1000', 'adc']),
+            Resized(keys=["image", "image_b1000"],
                     mode='trilinear',
                     align_corners=True,
                     spatial_size=(128, 128, 128)),
-            NormalizeIntensityd(keys="image", nonzero=True, channel_wise=True),
-            EnsureTyped(keys="image")]
+            NormalizeIntensityd(keys=["image", "image_b1000"], nonzero=True, channel_wise=True),
+            EnsureTyped(keys=["image", "image_b1000"])]
     )
 
     test_files = [{"image": image_name} for image_name in glob.glob(os.path.join(path_to_images, 'images/*'))]
@@ -97,6 +99,10 @@ def main(path_to_images):
     out_path = os.path.join(path_to_images, 'pred')
     if not os.path.exists(out_path):
         os.makedirs(out_path)
+
+    out_images = os.path.join(path_to_images, 'pngs')
+    if not os.path.exists(out_images):
+        os.makedirs(out_images)
 
     test_ds = Dataset(
         data=test_files, transform=test_transforms)
@@ -139,23 +145,33 @@ def main(path_to_images):
        bottleneck_layer=15
     ).to(device)
 
-    model.load_state_dict(torch.load('dwi_densenet.pth'))
+    if not adc:
+        model.load_state_dict(torch.load('dwi_densenet_no_adc.pth'))
+    else:
+        model.load_state_dict(torch.load('dwi_densenet.pth'))
     model.eval()
 
     with torch.no_grad():
         for i, test_data in enumerate(test_loader):
-            test_inputs = test_data["image"].to(device)
+            if not adc:
+                test_inputs = test_data["image_b1000"].to(device)
+            else:
+                test_inputs = test_data["image"].to(device)
             test_data["pred"] = model(test_inputs)
 
             test_data = [post_transforms(i) for i in decollate_batch(test_data)]
-            test_output,test_image = from_engine(["pred", "image"])(test_data)
+
+            if not adc:
+                test_output, test_image = from_engine(["pred", "image_b1000"])(test_data)
+            else:
+                test_output,test_image = from_engine(["pred", "image"])(test_data)
 
             original_image = loader(test_data[0]["image_meta_dict"]["filename_or_obj"])
             original_image = original_image[0]  # image data
             original_image = original_image[:, :, :, 0]
             prediction = test_output[0][1].detach().numpy()
             subject = test_data[0]["image_meta_dict"]["filename_or_obj"].split('.nii.gz')[0]
-            save_loc = os.path.join(out_path, subject + '_pred.png')
+            save_loc = os.path.join(out_images, subject + '_pred.png')
 
             create_mrlesion_img(
                 original_image,
@@ -167,4 +183,5 @@ def main(path_to_images):
 
 if __name__ == '__main__':
     path_to_images = sys.argv[1]
-    main(path_to_images)
+    adc = sys.argv[2] # whether or no to make prediction with ADC True/False
+    main(path_to_images, adc)
