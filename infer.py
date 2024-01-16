@@ -170,7 +170,7 @@ def main(path_to_images, adc=True):
             original_image = original_image[0]  # image data
             original_image = original_image[:, :, :, 0]
             prediction = test_output[0][1].detach().numpy()
-            subject = test_data[0]["image_meta_dict"]["filename_or_obj"].split('.nii.gz')[0]
+            subject = os.path.basename(test_data[0]["image_meta_dict"]["filename_or_obj"]).split('.nii.gz')[0]
             save_loc = os.path.join(out_images, subject + '_pred.png')
 
             create_mrlesion_img(
