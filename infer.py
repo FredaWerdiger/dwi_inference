@@ -135,15 +135,26 @@ def main(path_to_images, adc=True):
     loader = LoadImage(image_only=False)
     device = 'cpu' if not torch.cuda.is_available() else 'cuda'
 
-    model = DenseNetFCN(
-      ch_in=2,
-       ch_out_init=48,
-       num_classes=2,
-       growth_rate=16,
-       layers=(4, 5, 7, 10, 12),
-       bottleneck=True,
-       bottleneck_layer=15
-    ).to(device)
+    if not adc:
+        model = DenseNetFCN(
+          ch_in=1,
+           ch_out_init=48,
+           num_classes=2,
+           growth_rate=16,
+           layers=(4, 5, 7, 10, 12),
+           bottleneck=True,
+           bottleneck_layer=15
+        ).to(device)
+    else:
+        model = DenseNetFCN(
+            ch_in=2,
+            ch_out_init=48,
+            num_classes=2,
+            growth_rate=16,
+            layers=(4, 5, 7, 10, 12),
+            bottleneck=True,
+            bottleneck_layer=15
+        ).to(device)
 
     if not adc:
         model.load_state_dict(torch.load('dwi_densenet_no_adc.pth'))
