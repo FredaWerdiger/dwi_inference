@@ -68,11 +68,11 @@ def create_mrlesion_img(dwi_img, dwi_lesion_img, savefile, d, ext='png', dpi=250
     fig, axs = plt.subplots(3, 6, facecolor='k')
     fig.subplots_adjust(hspace=-0.6, wspace=-0.1)
     axs = axs.ravel()
-
+    vmax = dwi_img.max()
     for i in range(len(d)):
-        axs[i].imshow(dwi_img[:, :, d[i]], cmap='gray', interpolation='hanning', vmin=0, vmax=300)
-        axs[i].imshow(dwi_lesion_img[:, :, d[i]], cmap='Reds', interpolation='hanning', alpha=0.5, vmin=-2, vmax=1)
-        axs[i].imshow(masked_im[:, :, d[i]], cmap='gray', interpolation='hanning', alpha=1, vmin=0, vmax=300)
+        axs[i].imshow(dwi_img[:, :, d[i]], cmap='gray', interpolation='hanning', vmin=0, vmax=vmax)
+        axs[i].imshow(dwi_lesion_img[:, :, d[i]], cmap='Reds', interpolation='hanning', alpha=0.4, vmin=-2, vmax=1)
+        axs[i].imshow(masked_im[:, :, d[i]], cmap='gray', interpolation='hanning', alpha=1, vmin=0, vmax=vmax)
         axs[i].axis('off')
     plt.savefig(savefile, facecolor=fig.get_facecolor(), bbox_inches='tight', dpi=dpi, format=ext)
     plt.close()
@@ -172,10 +172,7 @@ def main(path_to_images, adc=True):
 
             test_data = [post_transforms(i) for i in decollate_batch(test_data)]
 
-            if not adc:
-                test_output, test_image = from_engine(["pred", "image_b1000"])(test_data)
-            else:
-                test_output,test_image = from_engine(["pred", "image"])(test_data)
+            test_output = from_engine(["pred"])(test_data)
 
             original_image = loader(test_data[0]["image_meta_dict"]["filename_or_obj"])
             original_image = original_image[0]  # image data
