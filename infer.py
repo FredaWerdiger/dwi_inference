@@ -78,20 +78,18 @@ def create_mrlesion_img(dwi_img, dwi_lesion_img, savefile, d, ext='png', dpi=250
     plt.close()
 
 
-def main(path_to_images, adc=True):
+def main(path_to_images):
 
     test_transforms = Compose(
         [
             LoadImaged(keys="image"),
             EnsureChannelFirstd(keys="image"),
-            SplitDimd(keys="image", dim=0, keepdim=True,
-                      output_postfixes=['b1000', 'adc']),
-            Resized(keys=["image", "image_b1000"],
+            Resized(keys="image",
                     mode='trilinear',
                     align_corners=True,
                     spatial_size=(128, 128, 128)),
-            NormalizeIntensityd(keys=["image", "image_b1000"], nonzero=True, channel_wise=True),
-            EnsureTyped(keys=["image", "image_b1000"])]
+            NormalizeIntensityd(keys="image", nonzero=True, channel_wise=True),
+            EnsureTyped(keys="image")]
     )
 
     test_files = [{"image": image_name} for image_name in glob.glob(os.path.join(path_to_images, 'images/*'))]
@@ -135,39 +133,23 @@ def main(path_to_images, adc=True):
     loader = LoadImage(image_only=False)
     device = 'cpu' if not torch.cuda.is_available() else 'cuda'
 
-    if not adc:
-        model = DenseNetFCN(
-          ch_in=1,
-           ch_out_init=48,
-           num_classes=2,
-           growth_rate=16,
-           layers=(4, 5, 7, 10, 12),
-           bottleneck=True,
-           bottleneck_layer=15
-        ).to(device)
-    else:
-        model = DenseNetFCN(
-            ch_in=2,
-            ch_out_init=48,
-            num_classes=2,
-            growth_rate=16,
-            layers=(4, 5, 7, 10, 12),
-            bottleneck=True,
-            bottleneck_layer=15
-        ).to(device)
+    model = DenseNetFCN(
+        ch_in=2,
+        ch_out_init=48,
+        num_classes=2,
+        growth_rate=16,
+        layers=(4, 5, 7, 10, 12),
+        bottleneck=True,
+        bottleneck_layer=15
+    ).to(device)
 
-    if not adc:
-        model.load_state_dict(torch.load('dwi_densenet_no_adc.pth'))
-    else:
-        model.load_state_dict(torch.load('dwi_densenet.pth'))
+    model.load_state_dict(torch.load('dwi_densenet.pth'))
     model.eval()
 
     with torch.no_grad():
         for i, test_data in enumerate(test_loader):
-            if not adc:
-                test_inputs = test_data["image_b1000"].to(device)
-            else:
-                test_inputs = test_data["image"].to(device)
+
+            test_inputs = test_data["image"].to(device)
             test_data["pred"] = model(test_inputs)
 
             test_data = [post_transforms(i) for i in decollate_batch(test_data)]
@@ -191,5 +173,4 @@ def main(path_to_images, adc=True):
 
 if __name__ == '__main__':
     path_to_images = sys.argv[1]
-    adc = sys.argv[2] # whether or no to make prediction with ADC True/False
-    main(path_to_images, adc)
+    main(path_to_images)
