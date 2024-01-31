@@ -10,7 +10,7 @@ organise_data.py brings data into the format necessary for running inference. Ho
 - The images should be organised in the same folder as follows: <path_to_images>/images/*subject*_image.nii.gz
 - Predictions/segmentations will be there found as follows: <path_to_images>/pred/*subject*_image_pred.nii.gz
 
-## Cite 
+## How to cite this in the literature 
 If used, please cite in literature as
 
 Freda Werdiger, Vignan Yogendrakumar, Milanka Visser, James Kolacz, Christina Lam, Mitchell Hill, Chushuang Chen, Mark W. Parsons, Andrew Bivard,
