@@ -73,7 +73,8 @@ def create_mrlesion_img(dwi_img, dwi_lesion_img, savefile, d, ext='png', dpi=250
         axs[i].imshow(dwi_img[:, :, d[i]], cmap='gray', interpolation='hanning', vmin=0, vmax=vmax)
         axs[i].imshow(dwi_lesion_img[:, :, d[i]], cmap='Reds', interpolation='hanning', alpha=0.4, vmin=-2, vmax=1)
         axs[i].imshow(masked_im[:, :, d[i]], cmap='gray', interpolation='hanning', alpha=1, vmin=0, vmax=vmax)
-        axs[i].axis('off')
+    for ax in axs.ravel():
+        ax.axis('off')
     plt.savefig(savefile, facecolor=fig.get_facecolor(), bbox_inches='tight', dpi=dpi, format=ext)
     plt.close()
 
