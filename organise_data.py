@@ -1,13 +1,14 @@
 #! /usr/bin/env python3
 import os
 import sys
-
+import csv
 import pandas as pd
 from nipype.interfaces.image import Reorient
 from nipype.interfaces.fsl.preprocess import BET
 from nibabel.processing import resample_from_to
 import nibabel as nb
 import time
+import glob
 
 '''
 Arguments:
@@ -24,7 +25,8 @@ out_path:
 the location of the result. Within the specified path, the stacked images will be saved under 'images'
 '''
 
-def main(subjects_file, atlas_path, out_path):
+
+def main(subjects_file, atlas_path, out_path, overwrite=False):
     if not os.path.exists(out_path):
         os.makedirs(out_path)
     if not os.path.exists(os.path.join(out_path, 'images')):
@@ -55,6 +57,7 @@ def main(subjects_file, atlas_path, out_path):
             subjects_df.loc[subjects_df.subject == name, 'dwi'] = 0
 
     adc_check = []
+    bet_fault = []
     # initiate BET
     betdwi = BET()
     betdwi.inputs.frac = 0.5
@@ -68,6 +71,9 @@ def main(subjects_file, atlas_path, out_path):
 
     subjects = subjects_df.subject.to_list()
     for subject in subjects:
+        if not overwrite:
+            if os.path.exists(os.path.join(out_path, 'images', subject + '_image.nii.gz')):
+                continue
         print(f"Running for subject: {subject}")
         try:
             dwi = [file for file in dwi_paths if subject in file][0]
@@ -79,7 +85,11 @@ def main(subjects_file, atlas_path, out_path):
         betdwi.inputs.out_file = temp1
         # create mask
         betdwi.inputs.mask = True
-        betdwi.run()
+        try:
+            betdwi.run()
+        except RuntimeError:
+            bet_fault.append(subject)
+            continue
         time.sleep(3)
         mask = temp1.split('.nii')[0] + '_mask.nii.gz'
 
@@ -107,7 +117,17 @@ def main(subjects_file, atlas_path, out_path):
         res = reorient.run()
         time.sleep(3)
         adc_im = nb.load(res.outputs.out_file)
+        if len(adc_im.get_fdata().shape) == 4:
+            adc_check.append(adc)
+            adc_im = nb.Nifti1Image(adc_im.get_fdata()[:, :, :, 0],
+                                    header=adc_im.header,
+                                    affine=adc_im.affine)
+        if len(adc_im.get_fdata().shape) > 4:
+            adc_check.append(adc)
+            continue
+
         if not dwi_im.get_fdata().shape == adc_im.get_fdata().shape:
+
             print('ADC not the same size as DWI. Resizing...')
             adc_check.append(adc)
             # resize adc im to be the same size as the dwi image
@@ -118,14 +138,25 @@ def main(subjects_file, atlas_path, out_path):
         adc_masked_im = nb.Nifti1Image(adc_masked, header=adc_im.header, affine=adc_im.affine)
         # remove reoriented file
         os.remove(res.outputs.out_file)
+        mat_file = glob.glob('*.mat')
+        [os.remove(file) for file in mat_file]
         combined_im = nb.concat_images([dwi_im, adc_masked_im], check_affines=False)
         nb.save(combined_im,
                 os.path.join(out_path, 'images', subject + '_image.nii.gz')
                 )
+    with open('bet_fault.csv', 'w') as myfile:
+        writer = csv.writer(myfile)
+        for subject in bet_fault:
+            writer.writerow([subject])
+    with open('check_adc.csv', 'w') as myfile:
+        writer = csv.writer(myfile)
+        for subject in adc_check:
+            writer.writerow([subject])
 
 
 if __name__ == '__main__':
     subjects_file = sys.argv[1]
     atlas_path = sys.argv[2]
     out_path = sys.argv[3]
-    main(subjects_file, atlas_path, out_path)
+    overwrite = sys.argv[4] # if you want to overwrite existing files, default is False
+    main(subjects_file, atlas_path, out_path, overwrite=False)
