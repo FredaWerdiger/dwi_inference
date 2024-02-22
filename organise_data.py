@@ -60,7 +60,7 @@ def main(subjects_file, atlas_path, out_path, overwrite=False):
     bet_fault = []
     # initiate BET
     betdwi = BET()
-    betdwi.inputs.frac = 0.5
+    betdwi.inputs.frac = 0.3
     betadc = BET()
     betadc.inputs.frac = 0.1
     # initiate Reorient
