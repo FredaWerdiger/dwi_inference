@@ -58,6 +58,7 @@ def main(subjects_file, atlas_path, out_path, overwrite=False):
 
     adc_check = []
     bet_fault = []
+    orientation = []
     # initiate BET
     betdwi = BET()
     betdwi.inputs.frac = 0.3
@@ -92,40 +93,57 @@ def main(subjects_file, atlas_path, out_path, overwrite=False):
             continue
         time.sleep(3)
         mask = temp1.split('.nii')[0] + '_mask.nii.gz'
-
-        # Check orientations of adc and dwi
-
-        reorient.inputs.in_file = temp1
-        res = reorient.run()
-        time.sleep(3)
-        dwi_im = nb.load(res.outputs.out_file)
-
-        reorient.inputs.in_file = mask
-        res = reorient.run()
-        time.sleep(3)
-        mask_im = nb.load(res.outputs.out_file)
+        mask_im = nb.load(mask)
 
         try:
             adc = [file for file in adc_paths if subject in file][0]
         except IndexError:
-            # for no ADC just combine two DWIs
-            combined_im = nb.concat_images([dwi_im, dwi_im], check_affines=False)
-            nb.save(combined_im,
-                    os.path.join(out_path, 'images', subject + '_image.nii.gz')
-                    )
+            print('No ADC')
             continue
 
-        reorient.inputs.in_file = adc
-        res = reorient.run()
-        time.sleep(3)
-        adc_im = nb.load(res.outputs.out_file)
+        adc_im = nb.load(adc)
+
+        # Check orientations of adc and dwi
+        dwi_im = nb.load(temp1)
+        dwi_or = nb.aff2axcodes(dwi_im.affine)
+        adc_or = nb.aff2axcodes(adc_im.affine)
+
+        if not adc_or == dwi_or:
+            print('ADC and DWI are not orientated the same direction')
+            orientation.append(subject)
+            print('Reorienting both to RAS')
+            reorient.inputs.in_file = temp1
+            res = reorient.run()
+            time.sleep(3)
+            dwi_im = nb.load(res.outputs.out_file)
+            reorient.inputs.in_file = adc
+            res = reorient.run()
+            time.sleep(3)
+            adc_im = nb.load(res.outputs.out_file)
+            reorient.inputs.in_file = mask
+            res = reorient.run()
+            time.sleep(3)
+            mask_im = nb.load(res.outputs.out_file)
+            # mask adc
+            adc_masked = adc_im.get_fdata() * mask_im.get_fdata()
+            adc_masked_im = nb.Nifti1Image(adc_masked, header=adc_im.header, affine=adc_im.affine)
+            # remove reoriented file
+            os.remove(res.outputs.out_file)
+            mat_file = glob.glob('*.mat')
+            [os.remove(file) for file in mat_file]
+            # TODO: Test
+
+        # mask adc
+        adc_masked = adc_im.get_fdata() * mask_im.get_fdata()
+        adc_masked_im = nb.Nifti1Image(adc_masked, header=adc_im.header, affine=adc_im.affine)
+
         if len(adc_im.get_fdata().shape) == 4:
             adc_check.append(adc)
             adc_im = nb.Nifti1Image(adc_im.get_fdata()[:, :, :, 0],
                                     header=adc_im.header,
                                     affine=adc_im.affine)
         if len(adc_im.get_fdata().shape) > 4:
-            adc_check.append(adc)
+            adc_check.append(subject)
             continue
 
         if not dwi_im.get_fdata().shape == adc_im.get_fdata().shape:
@@ -135,13 +153,6 @@ def main(subjects_file, atlas_path, out_path, overwrite=False):
             # resize adc im to be the same size as the dwi image
             adc_im = resample_from_to(adc_im, dwi_im)
 
-        # mask adc
-        adc_masked = adc_im.get_fdata() * mask_im.get_fdata()
-        adc_masked_im = nb.Nifti1Image(adc_masked, header=adc_im.header, affine=adc_im.affine)
-        # remove reoriented file
-        os.remove(res.outputs.out_file)
-        mat_file = glob.glob('*.mat')
-        [os.remove(file) for file in mat_file]
         combined_im = nb.concat_images([dwi_im, adc_masked_im], check_affines=False)
         nb.save(combined_im,
                 os.path.join(out_path, 'images', subject + '_image.nii.gz')
