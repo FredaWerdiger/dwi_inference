@@ -80,7 +80,7 @@ def main(subjects_file, atlas_path, out_path, overwrite=False):
         except IndexError:
             continue
 
-        # run bet on ADC (0.1) and DWI (0.5)
+        # run bet on ADC (0.1) and DWI (0.3)
         betdwi.inputs.in_file = dwi
         betdwi.inputs.out_file = temp1
         # create mask
@@ -92,6 +92,8 @@ def main(subjects_file, atlas_path, out_path, overwrite=False):
             continue
         time.sleep(3)
         mask = temp1.split('.nii')[0] + '_mask.nii.gz'
+
+        # Check orientations of adc and dwi
 
         reorient.inputs.in_file = temp1
         res = reorient.run()
