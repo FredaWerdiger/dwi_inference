@@ -64,14 +64,12 @@ def main(subjects_file, atlas_path, out_path, overwrite=False):
     betdwi.inputs.frac = 0.3
     betadc = BET()
     betadc.inputs.frac = 0.1
-    # initiate Reorient
-    reorient = Reorient(orientation='RAS')
 
     # temporary image for the BET outputs
     temp1 = 'temp1.nii.gz'
 
     subjects = subjects_df.subject.to_list()
-    for subject in subjects:
+    for subject in subjects[20:]:
         if not overwrite:
             if os.path.exists(os.path.join(out_path, 'images', subject + '_image.nii.gz')):
                 continue
@@ -92,6 +90,7 @@ def main(subjects_file, atlas_path, out_path, overwrite=False):
             bet_fault.append(subject)
             continue
         time.sleep(3)
+        dwi_im = nb.load(temp1)
         mask = temp1.split('.nii')[0] + '_mask.nii.gz'
         mask_im = nb.load(mask)
 
@@ -102,40 +101,6 @@ def main(subjects_file, atlas_path, out_path, overwrite=False):
             continue
 
         adc_im = nb.load(adc)
-
-        # Check orientations of adc and dwi
-        dwi_im = nb.load(temp1)
-        dwi_or = nb.aff2axcodes(dwi_im.affine)
-        adc_or = nb.aff2axcodes(adc_im.affine)
-
-        if not adc_or == dwi_or:
-            print('ADC and DWI are not orientated the same direction')
-            orientation.append(subject)
-            print('Reorienting both to RAS')
-            reorient.inputs.in_file = temp1
-            res = reorient.run()
-            time.sleep(3)
-            dwi_im = nb.load(res.outputs.out_file)
-            reorient.inputs.in_file = adc
-            res = reorient.run()
-            time.sleep(3)
-            adc_im = nb.load(res.outputs.out_file)
-            reorient.inputs.in_file = mask
-            res = reorient.run()
-            time.sleep(3)
-            mask_im = nb.load(res.outputs.out_file)
-            # mask adc
-            adc_masked = adc_im.get_fdata() * mask_im.get_fdata()
-            adc_masked_im = nb.Nifti1Image(adc_masked, header=adc_im.header, affine=adc_im.affine)
-            # remove reoriented file
-            os.remove(res.outputs.out_file)
-            mat_file = glob.glob('*.mat')
-            [os.remove(file) for file in mat_file]
-            # TODO: Test
-
-        # mask adc
-        adc_masked = adc_im.get_fdata() * mask_im.get_fdata()
-        adc_masked_im = nb.Nifti1Image(adc_masked, header=adc_im.header, affine=adc_im.affine)
 
         if len(adc_im.get_fdata().shape) == 4:
             adc_check.append(adc)
@@ -153,10 +118,38 @@ def main(subjects_file, atlas_path, out_path, overwrite=False):
             # resize adc im to be the same size as the dwi image
             adc_im = resample_from_to(adc_im, dwi_im)
 
+        # Check orientations of adc and dwi
+        dwi_or = nb.aff2axcodes(dwi_im.affine)
+        adc_or = nb.aff2axcodes(adc_im.affine)
+
+        if not adc_or == dwi_or:
+            print('ADC and DWI are not orientated the same direction')
+            orientation.append(subject)
+            reorient_to = dwi_or[0] + dwi_or[1] + dwi_or[2]
+            print('Reorienting ADC to the same orientation as DWI')
+            reorient = Reorient(orientation=reorient_to)
+
+            reorient.inputs.in_file = adc
+            res = reorient.run()
+            time.sleep(3)
+            adc_im = nb.load(res.outputs.out_file)
+
+
+        # mask adc
+        adc_masked = adc_im.get_fdata() * mask_im.get_fdata()
+        adc_masked_im = nb.Nifti1Image(adc_masked, header=adc_im.header, affine=adc_im.affine)
+
         combined_im = nb.concat_images([dwi_im, adc_masked_im], check_affines=False)
         nb.save(combined_im,
                 os.path.join(out_path, 'images', subject + '_image.nii.gz')
                 )
+
+        # remove reorientation file
+        if not adc_or == dwi_or:
+            os.remove(res.outputs.out_file)
+            mat_file = glob.glob('*.mat')
+            [os.remove(file) for file in mat_file]
+
     with open('bet_fault.csv', 'w') as myfile:
         writer = csv.writer(myfile)
         for subject in bet_fault:
@@ -164,6 +157,8 @@ def main(subjects_file, atlas_path, out_path, overwrite=False):
     with open('check_adc.csv', 'w') as myfile:
         writer = csv.writer(myfile)
         for subject in adc_check:
+            writer.writerow([subject])
+        for subject in orientation:
             writer.writerow([subject])
 
 
