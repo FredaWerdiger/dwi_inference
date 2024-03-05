@@ -20,7 +20,7 @@ with open('test_file.csv', 'w') as myfile:
     for subject in subs:
         writer.writerow([subject])
 atlas_path:
-The location of the mediaflux drive (e.g. Y:)
+The location of the mediaflux drive (e.g. Y:/)
 out_path:
 the location of the result. Within the specified path, the stacked images will be saved under 'images'
 '''
@@ -40,8 +40,8 @@ def main(subjects_file, atlas_path, out_path, overwrite=False):
     adc_paths = []
     for name in subjects:
         print(name)
-        DWI_loc = atlas + '/' + name + '/MR-follow_up/DWI-follow_up/' + name + '-fu-DWI_b1000.nii.gz'
-        ADC_loc = atlas + '/' + name + '/MR-follow_up/ADC-follow_up/' + name + '-fu-ADC.nii.gz'
+        DWI_loc = os.path.join(atlas, name, 'MR-follow_up/DWI-follow_up', name + '-fu-DWI_b1000.nii.gz')
+        ADC_loc = os.path.join(atlas, name, 'MR-follow_up/ADC-follow_up', name + '-fu-ADC.nii.gz')
         if os.path.exists(DWI_loc):
             print("The DWI exists for {}. Adding path.".format(name))
             dwi_paths.append(DWI_loc)
@@ -163,8 +163,8 @@ def main(subjects_file, atlas_path, out_path, overwrite=False):
 
 
 if __name__ == '__main__':
-    subjects_file = sys.argv[1]
-    atlas_path = sys.argv[2]
-    out_path = sys.argv[3]
-    overwrite = sys.argv[4] # if you want to overwrite existing files, default is False
-    main(subjects_file, atlas_path, out_path, overwrite=False)
+    if len(sys.argv) < 4:
+        print('Missing arguments.')
+        print('Usage: python organise_data.py subjects_csv atlas_path out_path optional:overwrite=True/False')
+    else:
+        main(*sys.argv[1:])
