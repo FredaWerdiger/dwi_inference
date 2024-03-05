@@ -20,6 +20,8 @@ patients_dwi = [patient for patient in patients if
                 any(patient in path for path in lesions))
 ]
 
+patients_dwi.sort()
+
 with open('all_atlas.csv', 'w') as myfile:
     writer = csv.writer(myfile)
     for subject in patients_dwi:

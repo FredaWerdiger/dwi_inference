@@ -58,18 +58,18 @@ def main(subjects_file, atlas_path, out_path, overwrite=False):
 
     adc_check = []
     bet_fault = []
-    orientation = []
     # initiate BET
     betdwi = BET()
-    betdwi.inputs.frac = 0.3
-    betadc = BET()
-    betadc.inputs.frac = 0.1
+    betdwi.inputs.frac = 0.4
 
     # temporary image for the BET outputs
     temp1 = 'temp1.nii.gz'
 
-    subjects = subjects_df.subject.to_list()
-    for subject in subjects[20:]:
+    subjects = subjects_df[(subjects_df.dwi == 1) & (subjects_df.adc == 1)].subject.to_list()
+
+    print('Running for {} patients...'.format(len(subjects)))
+
+    for subject in subjects:
         if not overwrite:
             if os.path.exists(os.path.join(out_path, 'images', subject + '_image.nii.gz')):
                 continue
@@ -124,7 +124,6 @@ def main(subjects_file, atlas_path, out_path, overwrite=False):
 
         if not adc_or == dwi_or:
             print('ADC and DWI are not orientated the same direction')
-            orientation.append(subject)
             reorient_to = dwi_or[0] + dwi_or[1] + dwi_or[2]
             print('Reorienting ADC to the same orientation as DWI')
             reorient = Reorient(orientation=reorient_to)
@@ -157,8 +156,6 @@ def main(subjects_file, atlas_path, out_path, overwrite=False):
     with open('check_adc.csv', 'w') as myfile:
         writer = csv.writer(myfile)
         for subject in adc_check:
-            writer.writerow([subject])
-        for subject in orientation:
             writer.writerow([subject])
 
 
