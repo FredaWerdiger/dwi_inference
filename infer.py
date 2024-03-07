@@ -59,8 +59,8 @@ def define_dvalues(dwi_img):
     return d
 
 def create_mrlesion_img(dwi_img, dwi_lesion_img, savefile, d, ext='png', dpi=250):
-    dwi_lesion_img = np.rot90(dwi_lesion_img)
-    dwi_img = np.rot90(dwi_img)
+    dwi_lesion_img = np.flipud(np.rot90(dwi_lesion_img))
+    dwi_img = np.flipud(np.rot90(dwi_img))
 
     mask = dwi_lesion_img < 1
     masked_im = np.ma.array(dwi_img, mask=~mask)
