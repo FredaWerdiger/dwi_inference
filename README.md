@@ -11,16 +11,25 @@ organise_data.py brings data into the format necessary for running inference. Ho
 - Predictions/segmentations will be there found as follows: <path_to_images>/pred/*subject*_image_pred.nii.gz
 ## Dependencies
 MONAI version: 0.10.dev2237
+
 Numpy version: 1.21.2
+
 Pytorch version: 1.10.2
 ### Optional dependencies:
 Pytorch Ignite version: 0.4.8
+
 Nibabel version: 3.2.1
+
 scikit-image version: 0.19.1
+
 Pillow version: 8.4.0
+
 TorchVision version: 0.11.3
+
 tqdm version: 4.65.0
+
 psutil version: 5.9.0
+
 pandas version: 1.4.0
 
 ## How to cite this in the literature 
